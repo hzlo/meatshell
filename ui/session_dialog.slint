@@ -1,0 +1,189 @@
+import { Theme } from "theme.slint";
+import { LabeledInput, PrimaryButton, GhostButton } from "widgets.slint";
+
+export struct SessionDraft {
+    id: string,
+    name: string,
+    host: string,
+    port: int,
+    user: string,
+    auth: string,      // "password" | "key"
+    password: string,
+    private-key-path: string,
+}
+
+// Modal dialog for creating / editing an SSH session.
+// The dialog is purely presentational — it stores values in mutable
+// properties and emits `submit` / `cancel` callbacks up to the main window.
+export component SessionDialog inherits Rectangle {
+    in-out property <bool> is-open: false;
+    in-out property <bool> is-editing: false;
+    in-out property <string> draft-id;
+    in-out property <string> draft-name;
+    in-out property <string> draft-host;
+    in-out property <string> draft-port: "22";
+    in-out property <string> draft-user: "root";
+    in-out property <string> draft-auth: "password";
+    in-out property <string> draft-password;
+    in-out property <string> draft-key-path;
+
+    callback submit(SessionDraft);
+    callback cancel();
+
+    visible: is-open;
+    background: #000000aa;
+
+    // Swallow clicks on the backdrop
+    TouchArea {
+        width: 100%; height: 100%;
+        clicked => { root.cancel(); }
+    }
+
+    Rectangle {
+        width: 420px;
+        height: 460px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: Theme.bg-panel;
+        border-radius: Theme.radius-lg;
+        border-width: 1px;
+        border-color: Theme.border-strong;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #00000080;
+
+        // Prevent backdrop click from propagating when user clicks inside the card
+        TouchArea {
+            width: 100%; height: 100%;
+        }
+
+        VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+
+            Text {
+                text: is-editing ? "编辑会话" : "新建会话";
+                color: Theme.text-primary;
+                font-size: Theme.fs-xl;
+                font-weight: 600;
+            }
+
+            LabeledInput {
+                label: "名称";
+                placeholder: "例如：生产环境 web-01";
+                value <=> root.draft-name;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                LabeledInput {
+                    label: "主机 / IP";
+                    placeholder: "192.168.1.10";
+                    value <=> root.draft-host;
+                    horizontal-stretch: 2;
+                }
+                LabeledInput {
+                    label: "端口";
+                    placeholder: "22";
+                    value <=> root.draft-port;
+                    horizontal-stretch: 1;
+                }
+            }
+
+            LabeledInput {
+                label: "用户名";
+                placeholder: "root";
+                value <=> root.draft-user;
+            }
+
+            // Auth method toggle
+            VerticalLayout {
+                spacing: 4px;
+                Text {
+                    text: "认证方式";
+                    color: Theme.text-secondary;
+                    font-size: Theme.fs-sm;
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    Rectangle {
+                        height: 30px;
+                        horizontal-stretch: 1;
+                        border-radius: Theme.radius-sm;
+                        border-width: 1px;
+                        background: root.draft-auth == "password" ? Theme.accent : Theme.bg-root;
+                        border-color: root.draft-auth == "password" ? Theme.accent : Theme.border-subtle;
+                        Text {
+                            text: "密码";
+                            color: root.draft-auth == "password" ? white : Theme.text-primary;
+                            font-size: Theme.fs-md;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.draft-auth = "password"; }
+                        }
+                    }
+                    Rectangle {
+                        height: 30px;
+                        horizontal-stretch: 1;
+                        border-radius: Theme.radius-sm;
+                        border-width: 1px;
+                        background: root.draft-auth == "key" ? Theme.accent : Theme.bg-root;
+                        border-color: root.draft-auth == "key" ? Theme.accent : Theme.border-subtle;
+                        Text {
+                            text: "私钥";
+                            color: root.draft-auth == "key" ? white : Theme.text-primary;
+                            font-size: Theme.fs-md;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.draft-auth = "key"; }
+                        }
+                    }
+                }
+            }
+
+            if root.draft-auth == "password" : LabeledInput {
+                label: "密码";
+                placeholder: "••••••••";
+                password: true;
+                value <=> root.draft-password;
+            }
+
+            if root.draft-auth == "key" : LabeledInput {
+                label: "私钥路径";
+                placeholder: "C:\\Users\\you\\.ssh\\id_ed25519";
+                value <=> root.draft-key-path;
+            }
+
+            Rectangle { vertical-stretch: 1; }
+
+            HorizontalLayout {
+                alignment: end;
+                spacing: 8px;
+                GhostButton {
+                    text: "取消";
+                    clicked => { root.cancel(); }
+                }
+                PrimaryButton {
+                    text: is-editing ? "保存" : "创建";
+                    clicked => {
+                        root.submit({
+                            id: root.draft-id,
+                            name: root.draft-name,
+                            host: root.draft-host,
+                            port: root.draft-port.to-float(),
+                            user: root.draft-user,
+                            auth: root.draft-auth,
+                            password: root.draft-password,
+                            private-key-path: root.draft-key-path,
+                        });
+                    }
+                }
+            }
+        }
+    }
+}
